@@ -44,8 +44,6 @@ def serverListen(serverSocket):
 			serverSocket.recv(1024)
 			serverSocket.send(bytes(state["groupname"],"utf-8"))
 			state["alive"] = False
-			serverSocket.shutdown(socket.SHUT_RDWR)
-			serverSocket.close()
 			break
 		elif msg == "/messageSend":
 			serverSocket.send(bytes(state["username"],"utf-8"))
