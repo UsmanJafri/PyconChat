@@ -25,9 +25,15 @@ class Group:
 		self.onlineMembers.add(username)
 		self.clients[username] = client
 
+	def sendMessage(self,message,username):
+		for member in self.onlineMembers:
+			if member != username:
+				self.clients[member].send(bytes(username + ": " + message,"utf-8"))
+
 def pyconChat(client):
 	while True:
 		msg = client.recv(1024).decode("utf-8")
+		print(msg)
 		if msg == "/viewRequests":
 			client.send(b"/viewRequests")
 			username = client.recv(1024).decode("utf-8")
@@ -62,6 +68,14 @@ def pyconChat(client):
 			client.send(b"/sendGroupname")
 			groupname = client.recv(1024).decode("utf-8")
 			groups[groupname].disconnect(username)
+		elif msg == "/messageSend":
+			client.send(b"/messageSend")
+			username = client.recv(1024).decode("utf-8")
+			client.send(b"/sendGroupname")
+			groupname = client.recv(1024).decode("utf-8")
+			client.send(b"/sendMessage")
+			message = client.recv(1024).decode("utf-8")
+			groups[groupname].sendMessage(message,username)
 
 if __name__ == "__main__":
 	ip = '127.0.0.1'
