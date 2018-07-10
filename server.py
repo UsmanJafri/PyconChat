@@ -12,6 +12,7 @@ class Group:
 		self.allMembers = set()
 		self.onlineMembers = set()
 		self.joinRequests = set()
+		self.waitClients = {}
 
 		self.clients[admin] = client
 		self.allMembers.add(admin)
@@ -55,6 +56,10 @@ def pyconChat(client):
 				if username in groups[groupname].joinRequests:
 					groups[groupname].joinRequests.remove(username)
 					groups[groupname].allMembers.add(username)
+					if username in groups[groupname].waitClients:
+						groups[groupname].waitClients[username].send(b"/accepted")
+						groups[groupname].connect(username,groups[groupname].waitClients[username])
+						del groups[groupname].waitClients[username]
 					print("Member Approved:",username,"| Group:",groupname)
 					client.send(b"User has been added to the group.")
 				else:
@@ -67,6 +72,7 @@ def pyconChat(client):
 			client.send(b"/sendGroupname")
 			groupname = client.recv(1024).decode("utf-8")
 			groups[groupname].disconnect(username)
+			print("User Disconnected:",username,"| Group:",groupname)
 			break
 		elif msg == "/messageSend":
 			client.send(b"/messageSend")
@@ -76,6 +82,13 @@ def pyconChat(client):
 			client.send(b"/sendMessage")
 			message = client.recv(1024).decode("utf-8")
 			groups[groupname].sendMessage(message,username)
+		elif msg == "/waitDisconnect":
+			client.send(b"/waitDisconnect")
+			username = client.recv(1024).decode("utf-8")
+			client.send(b"/sendGroupname")
+			groupname = client.recv(1024).decode("utf-8")
+			del groups[groupname].waitClients[username]
+			print("Waiting Client:",username,"Disconnected")
 
 if __name__ == "__main__":
 	ip = '127.0.0.1'
@@ -92,13 +105,14 @@ if __name__ == "__main__":
 		if groupname in groups:
 			if username in groups[groupname].allMembers:
 				groups[groupname].connect(username,client)
-				threading.Thread(target=pyconChat, args=(client,)).start()
 				client.send(b"/ready")
 				print("User Connected:",username,"| Group:",groupname)
 			else:
 				groups[groupname].joinRequests.add(username)
+				groups[groupname].waitClients[username] = client
 				client.send(b"/wait")
 				print("Join Request:",username,"| Group:",groupname)
+			threading.Thread(target=pyconChat, args=(client,)).start()
 		else:
 			groups[groupname] = Group(username,client)
 			threading.Thread(target=pyconChat, args=(client,)).start()
