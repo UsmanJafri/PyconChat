@@ -89,10 +89,22 @@ def pyconChat(client):
 			groupname = client.recv(1024).decode("utf-8")
 			del groups[groupname].waitClients[username]
 			print("Waiting Client:",username,"Disconnected")
+		elif msg == "/allMembers":
+			client.send(b"/allMembers")
+			username = client.recv(1024).decode("utf-8")
+			client.send(b"/sendGroupname")
+			groupname = client.recv(1024).decode("utf-8")
+			client.send(pickle.dumps(groups[groupname].allMembers))
+		elif msg == "/onlineMembers":
+			client.send(b"/onlineMembers")
+			username = client.recv(1024).decode("utf-8")
+			client.send(b"/sendGroupname")
+			groupname = client.recv(1024).decode("utf-8")
+			client.send(pickle.dumps(groups[groupname].onlineMembers))
 
 if __name__ == "__main__":
 	ip = '127.0.0.1'
-	port = 8000
+	port = 8001
 	listenSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 	listenSocket.bind((ip,port))
 	listenSocket.listen(10)

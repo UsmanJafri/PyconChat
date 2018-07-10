@@ -51,6 +51,22 @@ def serverListen(serverSocket):
 			serverSocket.recv(1024)
 			serverSocket.send(bytes(state["userInput"],"utf-8"))
 			state["sendMessageLock"].release()
+		elif msg == "/allMembers":
+			serverSocket.send(bytes(state["username"],"utf-8"))
+			serverSocket.recv(1024)
+			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			data = pickle.loads(serverSocket.recv(1024))
+			print("All Group Members:")
+			for element in data:
+				print(element)
+		elif msg == "/onlineMembers":
+			serverSocket.send(bytes(state["username"],"utf-8"))
+			serverSocket.recv(1024)
+			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			data = pickle.loads(serverSocket.recv(1024))
+			print("Online Group Members:")
+			for element in data:
+				print(element)
 		else:
 			print(msg)
 
@@ -68,6 +84,10 @@ def userInput(serverSocket):
 		elif state["userInput"] == "/3":
 			serverSocket.send(b"/disconnect")
 			break
+		elif state["userInput"] == "/4":
+			serverSocket.send(b"/allMembers")
+		elif state["userInput"] == "/5":
+			serverSocket.send(b"/onlineMembers")
 		elif state["inputMessage"]:
 			state["sendMessageLock"].acquire()
 			serverSocket.send(b"/messageSend")
@@ -75,10 +95,8 @@ def userInput(serverSocket):
 def waitUserInput(serverSocket):
 	while not state["alive"]:
 		state["userInput"] = input()
-		if state["userInput"] == "/3" and not state["alive"]:
+		if state["userInput"] == "/1" and not state["alive"]:
 			serverSocket.send(b"/waitDisconnect")
-			break
-		elif state["userInput"] == "/2":
 			break
 
 def waitServerListen(serverSocket):
@@ -97,7 +115,7 @@ def waitServerListen(serverSocket):
 
 if __name__ == "__main__":
 	ip = '127.0.0.1'
-	port = 8000
+	port = 8001
 	serverSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 	serverSocket.connect((ip,port))
 	state["inputCondition"] = threading.Condition()
@@ -119,6 +137,7 @@ if __name__ == "__main__":
 		state["alive"] = True
 	elif response == "/wait":
 		print("Your request to join the group is pending admin approval.")
+		print("Available Commands:\n/1 -> Disconnect\n")
 	waitUserInputThread = threading.Thread(target=waitUserInput,args=(serverSocket,))
 	waitServerListenThread = threading.Thread(target=waitServerListen,args=(serverSocket,))
 	userInputThread = threading.Thread(target=userInput,args=(serverSocket,))
@@ -129,6 +148,7 @@ if __name__ == "__main__":
 		if state["alive"] or state["joinDisconnect"]:
 			break
 	if state["alive"]:
+		print("Available Commands:\n/1 -> View Join Requests (Admins)\n/2 -> Approve Join Requests (Admin)\n/3 -> Disconnect\n/4 -> View All Members\n/5 -> View Online Group Members\nType anything else to send a message")
 		waitUserInputThread.join()
 		waitServerListenThread.join()
 		userInputThread.start()

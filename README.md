@@ -13,8 +13,8 @@ A Python chat application featuring group conversations, file sharing and offlin
 ### Features
 - File sharing**
 - Offline Messaging**
-- View online group members**
-- View all group members**
+- View online group members
+- View all group members
 - Transfer admin privilege**
 - Kick members**
 - If a user enters a group name which does not exist, a new group with the user as admin is automatically created.
