@@ -11,11 +11,12 @@ A Python chat application featuring group conversations, file sharing and offlin
 1. Open a Terminal window in the directory containing client.py and run:
 > python3 client.py
 ### Features
-- File sharing*
-- Offline Messaging*
-- View online group members*
-- View all group members*
-- Transfer admin privilege*
-- Kick members*
+- File sharing**
+- Offline Messaging**
+- View online group members**
+- View all group members**
+- Transfer admin privilege**
+- Kick members**
 - If a user enters a group name which does not exist, a new group with the user as admin is automatically created.
-* = Upcoming
+
+** = Upcoming
