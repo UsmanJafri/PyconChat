@@ -16,7 +16,7 @@ A Python chat application featuring group conversations, file sharing and offlin
 - View online group members
 - View all group members
 - Transfer admin privilege
-- Kick members**
+- Kick members
 - View group admin
 - If a user enters a group name which does not exist, a new group with the user as admin is automatically created.
 

@@ -85,11 +85,31 @@ def serverListen(serverSocket):
 		elif msg == "/whoAdmin":
 			serverSocket.send(bytes(state["groupname"],"utf-8"))
 			print(serverSocket.recv(1024).decode("utf-8"))
+		elif msg == "/kickMember":
+			serverSocket.send(bytes(state["username"],"utf-8"))
+			serverSocket.recv(1024)
+			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			response = serverSocket.recv(1024).decode("utf-8")
+			if response == "/proceed":
+				state["inputMessage"] = False
+				print("Please enter the username to kick: ")
+				with state["inputCondition"]:
+					state["inputCondition"].wait()
+				state["inputMessage"] = True
+				serverSocket.send(bytes(state["userInput"],"utf-8"))
+				print(serverSocket.recv(1024).decode("utf-8"))
+			else:
+				print(response)
+		elif msg == "/kicked":
+			state["alive"] = False
+			state["inputMessage"] = False
+			print("You have been kicked. Press any key to quit.")
+			break
 		else:
 			print(msg)
 
 def userInput(serverSocket):
-	while True:
+	while state["alive"]:
 		state["sendMessageLock"].acquire()
 		state["userInput"] = input()
 		state["sendMessageLock"].release()
@@ -172,7 +192,7 @@ if __name__ == "__main__":
 		if state["alive"] or state["joinDisconnect"]:
 			break
 	if state["alive"]:
-		print("Available Commands:\n/1 -> View Join Requests (Admins)\n/2 -> Approve Join Requests (Admin)\n/3 -> Disconnect\n/4 -> View All Members\n/5 -> View Online Group Members\n/6 -> Transfer Adminship\n/7 -> Check Group Admin\nType anything else to send a message")
+		print("Available Commands:\n/1 -> View Join Requests (Admins)\n/2 -> Approve Join Requests (Admin)\n/3 -> Disconnect\n/4 -> View All Members\n/5 -> View Online Group Members\n/6 -> Transfer Adminship\n/7 -> Check Group Admin\n/8 -> Kick Member\nType anything else to send a message")
 		waitUserInputThread.join()
 		waitServerListenThread.join()
 		userInputThread.start()

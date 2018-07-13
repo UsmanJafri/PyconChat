@@ -130,9 +130,13 @@ def pyconChat(client):
 				client.send(b"/proceed")
 				username = client.recv(1024).decode("utf-8")
 				if username in groups[groupname].allMembers:
-					groups[groupname].admin = username
-					print("New Admin:",username,"| Group:",groupname)
-					client.send(b"Your adminship is now transferred to the specified user.")
+					groups[groupname].allMembers.remove(username)
+					if username in groups[groupname].onlineMembers:
+						groups[groupname].clients[username].send(b"/kicked")
+						groups[groupname].onlineMembers.remove(username)
+						del groups[groupname].clients[username]
+					print("User Removed:",username,"| Group:",groupname)
+					client.send(b"The specified user is removed from the group.")
 				else:
 					client.send(b"The user is not a member of this group.")
 			else:
