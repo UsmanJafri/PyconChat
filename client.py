@@ -67,6 +67,24 @@ def serverListen(serverSocket):
 			print("Online Group Members:")
 			for element in data:
 				print(element)
+		elif msg == "/changeAdmin":
+			serverSocket.send(bytes(state["username"],"utf-8"))
+			serverSocket.recv(1024)
+			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			response = serverSocket.recv(1024).decode("utf-8")
+			if response == "/proceed":
+				state["inputMessage"] = False
+				print("Please enter the username of the new admin: ")
+				with state["inputCondition"]:
+					state["inputCondition"].wait()
+				state["inputMessage"] = True
+				serverSocket.send(bytes(state["userInput"],"utf-8"))
+				print(serverSocket.recv(1024).decode("utf-8"))
+			else:
+				print(response)
+		elif msg == "/whoAdmin":
+			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			print(serverSocket.recv(1024).decode("utf-8"))
 		else:
 			print(msg)
 
@@ -88,16 +106,15 @@ def userInput(serverSocket):
 			serverSocket.send(b"/allMembers")
 		elif state["userInput"] == "/5":
 			serverSocket.send(b"/onlineMembers")
+		elif state["userInput"] == "/6":
+			serverSocket.send(b"/changeAdmin")
+		elif state["userInput"] == "/7":
+			serverSocket.send(b"/whoAdmin")
+		elif state["userInput"] == "/8":
+			serverSocket.send(b"/kickMember")
 		elif state["inputMessage"]:
 			state["sendMessageLock"].acquire()
 			serverSocket.send(b"/messageSend")
-
-def waitUserInput(serverSocket):
-	while not state["alive"]:
-		state["userInput"] = input()
-		if state["userInput"] == "/1" and not state["alive"]:
-			serverSocket.send(b"/waitDisconnect")
-			break
 
 def waitServerListen(serverSocket):
 	while not state["alive"]:
@@ -111,6 +128,13 @@ def waitServerListen(serverSocket):
 			serverSocket.recv(1024)
 			serverSocket.send(bytes(state["groupname"],"utf-8"))
 			state["joinDisconnect"] = True
+			break
+
+def waitUserInput(serverSocket):
+	while not state["alive"]:
+		state["userInput"] = input()
+		if state["userInput"] == "/1" and not state["alive"]:
+			serverSocket.send(b"/waitDisconnect")
 			break
 
 if __name__ == "__main__":
@@ -148,7 +172,7 @@ if __name__ == "__main__":
 		if state["alive"] or state["joinDisconnect"]:
 			break
 	if state["alive"]:
-		print("Available Commands:\n/1 -> View Join Requests (Admins)\n/2 -> Approve Join Requests (Admin)\n/3 -> Disconnect\n/4 -> View All Members\n/5 -> View Online Group Members\nType anything else to send a message")
+		print("Available Commands:\n/1 -> View Join Requests (Admins)\n/2 -> Approve Join Requests (Admin)\n/3 -> Disconnect\n/4 -> View All Members\n/5 -> View Online Group Members\n/6 -> Transfer Adminship\n/7 -> Check Group Admin\nType anything else to send a message")
 		waitUserInputThread.join()
 		waitServerListenThread.join()
 		userInputThread.start()

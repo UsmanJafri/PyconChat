@@ -101,6 +101,62 @@ def pyconChat(client):
 			client.send(b"/sendGroupname")
 			groupname = client.recv(1024).decode("utf-8")
 			client.send(pickle.dumps(groups[groupname].onlineMembers))
+		elif msg == "/changeAdmin":
+			client.send(b"/changeAdmin")
+			username = client.recv(1024).decode("utf-8")
+			client.send(b"/sendGroupname")
+			groupname = client.recv(1024).decode("utf-8")
+			if username == groups[groupname].admin:
+				client.send(b"/proceed")
+				username = client.recv(1024).decode("utf-8")
+				if username in groups[groupname].allMembers:
+					groups[groupname].admin = username
+					print("New Admin:",username,"| Group:",groupname)
+					client.send(b"Your adminship is now transferred to the specified user.")
+				else:
+					client.send(b"The user is not a member of this group.")
+			else:
+				client.send(b"You're not an admin.")
+		elif msg == "/whoAdmin":
+			client.send(b"/whoAdmin")
+			groupname = client.recv(1024).decode("utf-8")
+			client.send(bytes("Admin: "+groups[groupname].admin,"utf-8"))
+		elif msg == "/kickMember":
+			client.send(b"/kickMember")
+			username = client.recv(1024).decode("utf-8")
+			client.send(b"/sendGroupname")
+			groupname = client.recv(1024).decode("utf-8")
+			if username == groups[groupname].admin:
+				client.send(b"/proceed")
+				username = client.recv(1024).decode("utf-8")
+				if username in groups[groupname].allMembers:
+					groups[groupname].admin = username
+					print("New Admin:",username,"| Group:",groupname)
+					client.send(b"Your adminship is now transferred to the specified user.")
+				else:
+					client.send(b"The user is not a member of this group.")
+			else:
+				client.send(b"You're not an admin.")
+def handshake(client):
+	username = client.recv(1024).decode("utf-8")
+	client.send(b"/sendGroupname")
+	groupname = client.recv(1024).decode("utf-8")
+	if groupname in groups:
+		if username in groups[groupname].allMembers:
+			groups[groupname].connect(username,client)
+			client.send(b"/ready")
+			print("User Connected:",username,"| Group:",groupname)
+		else:
+			groups[groupname].joinRequests.add(username)
+			groups[groupname].waitClients[username] = client
+			client.send(b"/wait")
+			print("Join Request:",username,"| Group:",groupname)
+		threading.Thread(target=pyconChat, args=(client,)).start()
+	else:
+		groups[groupname] = Group(username,client)
+		threading.Thread(target=pyconChat, args=(client,)).start()
+		client.send(b"/adminReady")
+		print("New Group:",groupname,"| Admin:",username)
 
 if __name__ == "__main__":
 	ip = '127.0.0.1'
@@ -111,22 +167,4 @@ if __name__ == "__main__":
 	print("PyconChat Server running")
 	while True:
 		client,_ = listenSocket.accept()
-		username = client.recv(1024).decode("utf-8")
-		client.send(b"/sendGroupname")
-		groupname = client.recv(1024).decode("utf-8")
-		if groupname in groups:
-			if username in groups[groupname].allMembers:
-				groups[groupname].connect(username,client)
-				client.send(b"/ready")
-				print("User Connected:",username,"| Group:",groupname)
-			else:
-				groups[groupname].joinRequests.add(username)
-				groups[groupname].waitClients[username] = client
-				client.send(b"/wait")
-				print("Join Request:",username,"| Group:",groupname)
-			threading.Thread(target=pyconChat, args=(client,)).start()
-		else:
-			groups[groupname] = Group(username,client)
-			threading.Thread(target=pyconChat, args=(client,)).start()
-			client.send(b"/adminReady")
-			print("New Group:",groupname,"| Admin:",username)
+		threading.Thread(target=handshake, args=(client,)).start()
