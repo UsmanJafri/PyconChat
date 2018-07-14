@@ -11,7 +11,7 @@ A Python chat application featuring group conversations, file sharing and offlin
 1. Open a Terminal window in the directory containing client.py and run:
 > python3 client.py
 ### Features
-- File sharing**
+- File sharing
 - Offline Messaging**
 - View online group members
 - View all group members

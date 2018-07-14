@@ -105,6 +105,39 @@ def serverListen(serverSocket):
 			state["inputMessage"] = False
 			print("You have been kicked. Press any key to quit.")
 			break
+		elif msg == "/fileTransfer":
+			serverSocket.send(bytes(state["username"],"utf-8"))
+			serverSocket.recv(1024)
+			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			serverSocket.recv(1024)
+			state["inputMessage"] = False
+			print("Please enter the filename: ")
+			with state["inputCondition"]:
+				state["inputCondition"].wait()
+			state["inputMessage"] = True
+			filename = state["userInput"]
+			serverSocket.send(bytes(filename,"utf-8"))
+			serverSocket.recv(1024)
+			print("Uploading file to server...")
+			with open(filename,'rb') as f:
+				data = f.read()
+				dataLen = len(data)
+				serverSocket.send(dataLen.to_bytes(4,'big'))
+				serverSocket.send(data)
+			print(serverSocket.recv(1024).decode("utf-8"))
+		elif msg == "/receiveFile":
+			print("Receiving shared group file...")
+			serverSocket.send(b"/sendFilename")
+			filename = serverSocket.recv(1024).decode("utf-8")
+			serverSocket.send(b"/sendFile")
+			remaining = int.from_bytes(serverSocket.recv(4),'big')
+			f = open(filename,"wb")
+			while remaining:
+				data = serverSocket.recv(min(remaining,4096))
+				remaining -= len(data)
+				f.write(data)
+			f.close()
+			print("Received file saved as",filename)
 		else:
 			print(msg)
 
@@ -132,6 +165,8 @@ def userInput(serverSocket):
 			serverSocket.send(b"/whoAdmin")
 		elif state["userInput"] == "/8":
 			serverSocket.send(b"/kickMember")
+		elif state["userInput"] == "/9":
+			serverSocket.send(b"/fileTransfer")
 		elif state["inputMessage"]:
 			state["sendMessageLock"].acquire()
 			serverSocket.send(b"/messageSend")
@@ -141,7 +176,7 @@ def waitServerListen(serverSocket):
 		msg = serverSocket.recv(1024).decode("utf-8")
 		if msg == "/accepted":
 			state["alive"] = True
-			print("Your join request has been approved. Press any key to begin chatting.")
+			print("Your join request has been approved. Press any key to enter the group.")
 			break
 		elif msg == "/waitDisconnect":
 			serverSocket.send(bytes(state["username"],"utf-8"))
@@ -192,7 +227,7 @@ if __name__ == "__main__":
 		if state["alive"] or state["joinDisconnect"]:
 			break
 	if state["alive"]:
-		print("Available Commands:\n/1 -> View Join Requests (Admins)\n/2 -> Approve Join Requests (Admin)\n/3 -> Disconnect\n/4 -> View All Members\n/5 -> View Online Group Members\n/6 -> Transfer Adminship\n/7 -> Check Group Admin\n/8 -> Kick Member\nType anything else to send a message")
+		print("Available Commands:\n/1 -> View Join Requests (Admins)\n/2 -> Approve Join Requests (Admin)\n/3 -> Disconnect\n/4 -> View All Members\n/5 -> View Online Group Members\n/6 -> Transfer Adminship\n/7 -> Check Group Admin\n/8 -> Kick Member\n/9 -> File Transfer\nType anything else to send a message")
 		waitUserInputThread.join()
 		waitServerListenThread.join()
 		userInputThread.start()

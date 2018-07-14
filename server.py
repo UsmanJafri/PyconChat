@@ -1,8 +1,10 @@
 import socket
 import threading
 import pickle
+import os
 
 groups = {}
+fileTransferCondition = threading.Condition()
 
 class Group:
 	def __init__(self,admin,client):
@@ -141,6 +143,44 @@ def pyconChat(client):
 					client.send(b"The user is not a member of this group.")
 			else:
 				client.send(b"You're not an admin.")
+		elif msg == "/fileTransfer":
+			client.send(b"/fileTransfer")
+			username = client.recv(1024).decode("utf-8")
+			client.send(b"/sendGroupname")
+			groupname = client.recv(1024).decode("utf-8")
+			client.send(b"/sendFilename")
+			filename = client.recv(1024).decode("utf-8")
+			client.send(b"/sendFile")
+			remaining = int.from_bytes(client.recv(4),'big')
+			f = open(filename,"wb")
+			while remaining:
+				data = client.recv(min(remaining,4096))
+				remaining -= len(data)
+				f.write(data)
+			f.close()
+			print("File received:",filename,"| User:",username,"| Group:",groupname)
+			for member in groups[groupname].onlineMembers:
+				if member != username:
+					memberClient = groups[groupname].clients[member]
+					memberClient.send(b"/receiveFile")
+					with fileTransferCondition:
+						fileTransferCondition.wait()
+					memberClient.send(bytes(filename,"utf-8"))
+					with fileTransferCondition:
+						fileTransferCondition.wait()
+					with open(filename,'rb') as f:
+						data = f.read()
+						dataLen = len(data)
+						memberClient.send(dataLen.to_bytes(4,'big'))
+						memberClient.send(data)
+			client.send(bytes(filename+" successfully sent to all online group members.","utf-8"))
+			print("File sent",filename,"| Group: ",groupname)
+			os.remove(filename)
+		elif msg == "/sendFilename" or msg == "/sendFile":
+			with fileTransferCondition:
+				fileTransferCondition.notify()
+		else:
+			print("UNIDENTIFIED COMMAND:",msg)
 def handshake(client):
 	username = client.recv(1024).decode("utf-8")
 	client.send(b"/sendGroupname")
@@ -153,6 +193,7 @@ def handshake(client):
 		else:
 			groups[groupname].joinRequests.add(username)
 			groups[groupname].waitClients[username] = client
+			groups[groupname].sendMessage(username+" has requested to join the group.","PyconChat")
 			client.send(b"/wait")
 			print("Join Request:",username,"| Group:",groupname)
 		threading.Thread(target=pyconChat, args=(client,)).start()
