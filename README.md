@@ -1,4 +1,4 @@
-# PyconChat
+# PyconChat (**Py**thon *Co*nsole *Chat*)
 A Python chat application featuring group conversations, file sharing and offline messaging.
 ### Requirements
 1. Python 3
@@ -12,7 +12,6 @@ A Python chat application featuring group conversations, file sharing and offlin
 > python3 client.py
 ### Features
 - File sharing
-- Offline Messaging**
 - View online group members
 - View all group members
 - Transfer admin privilege
@@ -20,4 +19,6 @@ A Python chat application featuring group conversations, file sharing and offlin
 - View group admin
 - If a user enters a group name which does not exist, a new group with the user as admin is automatically created.
 
-** = Upcoming
+## Upcoming
+1. Improvements to user input handling to negate the chance of a user's message being treated as a system protocol message.
+2. Offline Messages
