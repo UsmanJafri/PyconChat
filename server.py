@@ -2,6 +2,7 @@ import socket
 import threading
 import pickle
 import os
+import sys
 
 groups = {}
 fileTransferCondition = threading.Condition()
@@ -72,15 +73,13 @@ def pyconChat(client, username, groupname):
 			break
 		elif msg == "/messageSend":
 			client.send(b"/messageSend")
-			client.recv(1024).decode("utf-8")
-			client.send(b"/sendMessage")
 			message = client.recv(1024).decode("utf-8")
 			groups[groupname].sendMessage(message,username)
 		elif msg == "/waitDisconnect":
 			client.send(b"/waitDisconnect")
-			client.recv(1024).decode("utf-8")
 			del groups[groupname].waitClients[username]
 			print("Waiting Client:",username,"Disconnected")
+			break
 		elif msg == "/allMembers":
 			client.send(b"/allMembers")
 			client.recv(1024).decode("utf-8")
@@ -127,9 +126,9 @@ def pyconChat(client, username, groupname):
 				client.send(b"You're not an admin.")
 		elif msg == "/fileTransfer":
 			client.send(b"/fileTransfer")
-			client.recv(1024).decode("utf-8")
-			client.send(b"/sendFilename")
 			filename = client.recv(1024).decode("utf-8")
+			if filename == "~error~":
+				continue
 			client.send(b"/sendFile")
 			remaining = int.from_bytes(client.recv(4),'big')
 			f = open(filename,"wb")
@@ -183,13 +182,18 @@ def handshake(client):
 		client.send(b"/adminReady")
 		print("New Group:",groupname,"| Admin:",username)
 
-if __name__ == "__main__":
-	ip = '127.0.0.1'
-	port = 8001
-	listenSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-	listenSocket.bind((ip,port))
+def main():
+	if len(sys.argv) < 3:
+		print("USAGE: python server.py <IP> <Port>")
+		print("EXAMPLE: python server.py localhost 8000")
+		return
+	listenSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	listenSocket.bind((sys.argv[1], int(sys.argv[2])))
 	listenSocket.listen(10)
 	print("PyconChat Server running")
 	while True:
 		client,_ = listenSocket.accept()
 		threading.Thread(target=handshake, args=(client,)).start()
+
+if __name__ == "__main__":
+	main()
