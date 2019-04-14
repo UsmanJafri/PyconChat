@@ -2,6 +2,7 @@ import socket
 import threading
 import pickle
 import os
+import sys
 
 groups = {}
 fileTransferCondition = threading.Condition()
@@ -33,14 +34,12 @@ class Group:
 			if member != username:
 				self.clients[member].send(bytes(username + ": " + message,"utf-8"))
 
-def pyconChat(client):
+def pyconChat(client, username, groupname):
 	while True:
 		msg = client.recv(1024).decode("utf-8")
 		if msg == "/viewRequests":
 			client.send(b"/viewRequests")
-			username = client.recv(1024).decode("utf-8")
-			client.send(b"/sendGroupname")
-			groupname = client.recv(1024).decode("utf-8")
+			client.recv(1024).decode("utf-8")
 			if username == groups[groupname].admin:
 				client.send(b"/sendingData")
 				client.recv(1024)
@@ -49,20 +48,18 @@ def pyconChat(client):
 				client.send(b"You're not an admin.")
 		elif msg == "/approveRequest":
 			client.send(b"/approveRequest")
-			username = client.recv(1024).decode("utf-8")
-			client.send(b"/sendGroupname")
-			groupname = client.recv(1024).decode("utf-8")
+			client.recv(1024).decode("utf-8")
 			if username == groups[groupname].admin:
 				client.send(b"/proceed")
-				username = client.recv(1024).decode("utf-8")
-				if username in groups[groupname].joinRequests:
-					groups[groupname].joinRequests.remove(username)
-					groups[groupname].allMembers.add(username)
-					if username in groups[groupname].waitClients:
-						groups[groupname].waitClients[username].send(b"/accepted")
-						groups[groupname].connect(username,groups[groupname].waitClients[username])
-						del groups[groupname].waitClients[username]
-					print("Member Approved:",username,"| Group:",groupname)
+				usernameToApprove = client.recv(1024).decode("utf-8")
+				if usernameToApprove in groups[groupname].joinRequests:
+					groups[groupname].joinRequests.remove(usernameToApprove)
+					groups[groupname].allMembers.add(usernameToApprove)
+					if usernameToApprove in groups[groupname].waitClients:
+						groups[groupname].waitClients[usernameToApprove].send(b"/accepted")
+						groups[groupname].connect(usernameToApprove,groups[groupname].waitClients[usernameToApprove])
+						del groups[groupname].waitClients[usernameToApprove]
+					print("Member Approved:",usernameToApprove,"| Group:",groupname)
 					client.send(b"User has been added to the group.")
 				else:
 					client.send(b"The user has not requested to join.")
@@ -70,50 +67,36 @@ def pyconChat(client):
 				client.send(b"You're not an admin.")
 		elif msg == "/disconnect":
 			client.send(b"/disconnect")
-			username = client.recv(1024).decode("utf-8")
-			client.send(b"/sendGroupname")
-			groupname = client.recv(1024).decode("utf-8")
+			client.recv(1024).decode("utf-8")
 			groups[groupname].disconnect(username)
 			print("User Disconnected:",username,"| Group:",groupname)
 			break
 		elif msg == "/messageSend":
 			client.send(b"/messageSend")
-			username = client.recv(1024).decode("utf-8")
-			client.send(b"/sendGroupname")
-			groupname = client.recv(1024).decode("utf-8")
-			client.send(b"/sendMessage")
 			message = client.recv(1024).decode("utf-8")
 			groups[groupname].sendMessage(message,username)
 		elif msg == "/waitDisconnect":
 			client.send(b"/waitDisconnect")
-			username = client.recv(1024).decode("utf-8")
-			client.send(b"/sendGroupname")
-			groupname = client.recv(1024).decode("utf-8")
 			del groups[groupname].waitClients[username]
 			print("Waiting Client:",username,"Disconnected")
+			break
 		elif msg == "/allMembers":
 			client.send(b"/allMembers")
-			username = client.recv(1024).decode("utf-8")
-			client.send(b"/sendGroupname")
-			groupname = client.recv(1024).decode("utf-8")
+			client.recv(1024).decode("utf-8")
 			client.send(pickle.dumps(groups[groupname].allMembers))
 		elif msg == "/onlineMembers":
 			client.send(b"/onlineMembers")
-			username = client.recv(1024).decode("utf-8")
-			client.send(b"/sendGroupname")
-			groupname = client.recv(1024).decode("utf-8")
+			client.recv(1024).decode("utf-8")
 			client.send(pickle.dumps(groups[groupname].onlineMembers))
 		elif msg == "/changeAdmin":
 			client.send(b"/changeAdmin")
-			username = client.recv(1024).decode("utf-8")
-			client.send(b"/sendGroupname")
-			groupname = client.recv(1024).decode("utf-8")
+			client.recv(1024).decode("utf-8")
 			if username == groups[groupname].admin:
 				client.send(b"/proceed")
-				username = client.recv(1024).decode("utf-8")
-				if username in groups[groupname].allMembers:
-					groups[groupname].admin = username
-					print("New Admin:",username,"| Group:",groupname)
+				newAdminUsername = client.recv(1024).decode("utf-8")
+				if newAdminUsername in groups[groupname].allMembers:
+					groups[groupname].admin = newAdminUsername
+					print("New Admin:",newAdminUsername,"| Group:",groupname)
 					client.send(b"Your adminship is now transferred to the specified user.")
 				else:
 					client.send(b"The user is not a member of this group.")
@@ -125,19 +108,17 @@ def pyconChat(client):
 			client.send(bytes("Admin: "+groups[groupname].admin,"utf-8"))
 		elif msg == "/kickMember":
 			client.send(b"/kickMember")
-			username = client.recv(1024).decode("utf-8")
-			client.send(b"/sendGroupname")
-			groupname = client.recv(1024).decode("utf-8")
+			client.recv(1024).decode("utf-8")
 			if username == groups[groupname].admin:
 				client.send(b"/proceed")
-				username = client.recv(1024).decode("utf-8")
-				if username in groups[groupname].allMembers:
-					groups[groupname].allMembers.remove(username)
-					if username in groups[groupname].onlineMembers:
-						groups[groupname].clients[username].send(b"/kicked")
-						groups[groupname].onlineMembers.remove(username)
-						del groups[groupname].clients[username]
-					print("User Removed:",username,"| Group:",groupname)
+				usernameToKick = client.recv(1024).decode("utf-8")
+				if usernameToKick in groups[groupname].allMembers:
+					groups[groupname].allMembers.remove(usernameToKick)
+					if usernameToKick in groups[groupname].onlineMembers:
+						groups[groupname].clients[usernameToKick].send(b"/kicked")
+						groups[groupname].onlineMembers.remove(usernameToKick)
+						del groups[groupname].clients[usernameToKick]
+					print("User Removed:",usernameToKick,"| Group:",groupname)
 					client.send(b"The specified user is removed from the group.")
 				else:
 					client.send(b"The user is not a member of this group.")
@@ -145,11 +126,9 @@ def pyconChat(client):
 				client.send(b"You're not an admin.")
 		elif msg == "/fileTransfer":
 			client.send(b"/fileTransfer")
-			username = client.recv(1024).decode("utf-8")
-			client.send(b"/sendGroupname")
-			groupname = client.recv(1024).decode("utf-8")
-			client.send(b"/sendFilename")
 			filename = client.recv(1024).decode("utf-8")
+			if filename == "~error~":
+				continue
 			client.send(b"/sendFile")
 			remaining = int.from_bytes(client.recv(4),'big')
 			f = open(filename,"wb")
@@ -196,20 +175,25 @@ def handshake(client):
 			groups[groupname].sendMessage(username+" has requested to join the group.","PyconChat")
 			client.send(b"/wait")
 			print("Join Request:",username,"| Group:",groupname)
-		threading.Thread(target=pyconChat, args=(client,)).start()
+		threading.Thread(target=pyconChat, args=(client, username, groupname,)).start()
 	else:
 		groups[groupname] = Group(username,client)
-		threading.Thread(target=pyconChat, args=(client,)).start()
+		threading.Thread(target=pyconChat, args=(client, username, groupname,)).start()
 		client.send(b"/adminReady")
 		print("New Group:",groupname,"| Admin:",username)
 
-if __name__ == "__main__":
-	ip = '127.0.0.1'
-	port = 8001
-	listenSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-	listenSocket.bind((ip,port))
+def main():
+	if len(sys.argv) < 3:
+		print("USAGE: python server.py <IP> <Port>")
+		print("EXAMPLE: python server.py localhost 8000")
+		return
+	listenSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	listenSocket.bind((sys.argv[1], int(sys.argv[2])))
 	listenSocket.listen(10)
 	print("PyconChat Server running")
 	while True:
 		client,_ = listenSocket.accept()
 		threading.Thread(target=handshake, args=(client,)).start()
+
+if __name__ == "__main__":
+	main()

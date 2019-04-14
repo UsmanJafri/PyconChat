@@ -1,6 +1,7 @@
 import socket
 import threading
 import pickle
+import sys
 
 state = {}
 
@@ -8,9 +9,7 @@ def serverListen(serverSocket):
 	while True:
 		msg = serverSocket.recv(1024).decode("utf-8")
 		if msg == "/viewRequests":
-			serverSocket.send(bytes(state["username"],"utf-8"))
-			serverSocket.recv(1024)
-			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			serverSocket.send(bytes(".","utf-8"))
 			response = serverSocket.recv(1024).decode("utf-8")
 			if response == "/sendingData":
 				serverSocket.send(b"/readyForData")
@@ -24,9 +23,7 @@ def serverListen(serverSocket):
 			else:
 				print(response)
 		elif msg == "/approveRequest":
-			serverSocket.send(bytes(state["username"],"utf-8"))
-			serverSocket.recv(1024)
-			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			serverSocket.send(bytes(".","utf-8"))
 			response = serverSocket.recv(1024).decode("utf-8")
 			if response == "/proceed":
 				state["inputMessage"] = False
@@ -39,38 +36,26 @@ def serverListen(serverSocket):
 			else:
 				print(response)
 		elif msg == "/disconnect":
-			serverSocket.send(bytes(state["username"],"utf-8"))
-			serverSocket.recv(1024)
-			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			serverSocket.send(bytes(".","utf-8"))
 			state["alive"] = False
 			break
 		elif msg == "/messageSend":
-			serverSocket.send(bytes(state["username"],"utf-8"))
-			serverSocket.recv(1024)
-			serverSocket.send(bytes(state["groupname"],"utf-8"))
-			serverSocket.recv(1024)
 			serverSocket.send(bytes(state["userInput"],"utf-8"))
 			state["sendMessageLock"].release()
 		elif msg == "/allMembers":
-			serverSocket.send(bytes(state["username"],"utf-8"))
-			serverSocket.recv(1024)
-			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			serverSocket.send(bytes(".","utf-8"))
 			data = pickle.loads(serverSocket.recv(1024))
 			print("All Group Members:")
 			for element in data:
 				print(element)
 		elif msg == "/onlineMembers":
-			serverSocket.send(bytes(state["username"],"utf-8"))
-			serverSocket.recv(1024)
-			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			serverSocket.send(bytes(".","utf-8"))
 			data = pickle.loads(serverSocket.recv(1024))
 			print("Online Group Members:")
 			for element in data:
 				print(element)
 		elif msg == "/changeAdmin":
-			serverSocket.send(bytes(state["username"],"utf-8"))
-			serverSocket.recv(1024)
-			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			serverSocket.send(bytes(".","utf-8"))
 			response = serverSocket.recv(1024).decode("utf-8")
 			if response == "/proceed":
 				state["inputMessage"] = False
@@ -86,9 +71,7 @@ def serverListen(serverSocket):
 			serverSocket.send(bytes(state["groupname"],"utf-8"))
 			print(serverSocket.recv(1024).decode("utf-8"))
 		elif msg == "/kickMember":
-			serverSocket.send(bytes(state["username"],"utf-8"))
-			serverSocket.recv(1024)
-			serverSocket.send(bytes(state["groupname"],"utf-8"))
+			serverSocket.send(bytes(".","utf-8"))
 			response = serverSocket.recv(1024).decode("utf-8")
 			if response == "/proceed":
 				state["inputMessage"] = False
@@ -106,16 +89,19 @@ def serverListen(serverSocket):
 			print("You have been kicked. Press any key to quit.")
 			break
 		elif msg == "/fileTransfer":
-			serverSocket.send(bytes(state["username"],"utf-8"))
-			serverSocket.recv(1024)
-			serverSocket.send(bytes(state["groupname"],"utf-8"))
-			serverSocket.recv(1024)
 			state["inputMessage"] = False
 			print("Please enter the filename: ")
 			with state["inputCondition"]:
 				state["inputCondition"].wait()
 			state["inputMessage"] = True
 			filename = state["userInput"]
+			try:
+				f = open(filename,'rb')
+				f.close()
+			except FileNotFoundError:
+				print("The requested file does not exist.")
+				serverSocket.send(bytes("~error~","utf-8"))
+				continue
 			serverSocket.send(bytes(filename,"utf-8"))
 			serverSocket.recv(1024)
 			print("Uploading file to server...")
@@ -176,12 +162,9 @@ def waitServerListen(serverSocket):
 		msg = serverSocket.recv(1024).decode("utf-8")
 		if msg == "/accepted":
 			state["alive"] = True
-			print("Your join request has been approved. Press any key to enter the group.")
+			print("Your join request has been approved. Press any key to begin chatting.")
 			break
 		elif msg == "/waitDisconnect":
-			serverSocket.send(bytes(state["username"],"utf-8"))
-			serverSocket.recv(1024)
-			serverSocket.send(bytes(state["groupname"],"utf-8"))
 			state["joinDisconnect"] = True
 			break
 
@@ -192,11 +175,13 @@ def waitUserInput(serverSocket):
 			serverSocket.send(b"/waitDisconnect")
 			break
 
-if __name__ == "__main__":
-	ip = '127.0.0.1'
-	port = 8001
+def main():
+	if len(sys.argv) < 3:
+		print("USAGE: python client.py <IP> <Port>")
+		print("EXAMPLE: python client.py localhost 8000")
+		return
 	serverSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-	serverSocket.connect((ip,port))
+	serverSocket.connect((sys.argv[1], int(sys.argv[2])))
 	state["inputCondition"] = threading.Condition()
 	state["sendMessageLock"] = threading.Lock()
 	state["username"] = input("Welcome to PyconChat! Please enter your username: ")
@@ -247,3 +232,6 @@ if __name__ == "__main__":
 			serverListenThread.join()
 			print("Disconnected from PyconChat.")
 			break
+
+if __name__ == "__main__":
+	main()
