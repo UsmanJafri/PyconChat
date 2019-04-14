@@ -162,7 +162,7 @@ def waitServerListen(serverSocket):
 		msg = serverSocket.recv(1024).decode("utf-8")
 		if msg == "/accepted":
 			state["alive"] = True
-			print("Your join request has been approved. Press any key to enter the group.")
+			print("Your join request has been approved. Press any key to begin chatting.")
 			break
 		elif msg == "/waitDisconnect":
 			state["joinDisconnect"] = True
